@@ -3,62 +3,25 @@ import gi
 import sys
 import os
 import subprocess
-import re
 import notify2
 import asyncio
 import gbulb
 import cnst
 import time
+from device_handle import device_prop, device_map, setEnabled
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk
+gi.require_version('Keybinder', '3.0')
+from gi.repository import Gtk, Gdk
 asyncio.set_event_loop_policy(gbulb.GLibEventLoopPolicy())
-
-
-def device_map():
-    try:
-        data = subprocess.check_output(['xinput', '--list'])
-    except Exception:
-        print("xinput not found!")
-        sys.exit()
-    devices = {}
-    data = data.decode("utf-8")
-    for line in data.splitlines():
-        line = line.lower().strip()
-        if 'pointer' in line and 'slave' in line and 'virtual core' not in line:
-            match = re.search(r'id=([0-9]+)', line)
-            device_id = str(match.group(1))
-            devices.setdefault(line.split('\t')[0].strip()[6:], device_id)
-    return devices
-
-
-def device_prop(device_id: str):
-    prop_data = subprocess.check_output(['xinput', '--list-props', device_id])
-    prop_data = prop_data.decode()
-    for line in prop_data.splitlines():
-        if 'Device Enabled' in line and line.strip()[-1] == '1':
-            return True
-        elif 'Device Enabled' in line and line.strip()[-1] == '0':
-            return False
 
 
 def on_switch_activated(switch: Gtk.Switch, gparam=None):
     if switch.get_active():
-        setEnabled(True, switch_chain.get(switch))
+        setEnabled(True, switch_map.get(switch))
         time.sleep(0.1)
     else:
-        setEnabled(False, switch_chain.get(switch))
+        setEnabled(False, switch_map.get(switch))
         time.sleep(0.1)
-
-
-def setEnabled(state: bool, device_id: str):
-    if state:
-        flag = '--enable'
-    else:
-        flag = '--disable'
-    try:
-        subprocess.check_call(['xinput', flag, device_id])
-    except Exception:
-        pass
 
 
 async def show_notify(msg: str):
@@ -228,6 +191,22 @@ def update_cache(val: int, flag: str):
             crt.write(str(val))
 
 
+def key_press_event(widget, event):
+    keyval = event.keyval
+    keyval_name = Gdk.keyval_name(keyval)
+    state = event.state
+    ctrl = (state & (Gdk.ModifierType.MOD1_MASK | Gdk.ModifierType.CONTROL_MASK))
+    if ctrl and shortcut_map.get(int(keyval_name)):
+        switch = shortcut_map.get(int(keyval_name))
+        switch_state = not switch.get_active()
+        switch.set_active(switch_state)
+        setEnabled(switch_state, switch_map.get(switch))
+    else:
+        return False
+    return True
+
+
+
 def main():
     # First run
     first_init()
@@ -266,6 +245,7 @@ def main():
     listbox.set_selection_mode(Gtk.SelectionMode.NONE)
     main_box.pack_start(listbox, True, True, 0)
 
+    i = 1
     for item in devices.items():
         device_name, device_id = item
         row = Gtk.ListBoxRow()
@@ -278,7 +258,9 @@ def main():
         vbox.pack_start(label1, True, True, 0)
 
         switch = Gtk.Switch()
-        switch_chain.setdefault(switch, device_id)
+        switch_map.setdefault(switch, device_id)
+        shortcut_map.setdefault(i, switch)
+
         switch.props.valign = Gtk.Align.CENTER
         hbox.pack_start(switch, False, True, 0)
         if device_prop(device_id):
@@ -287,6 +269,7 @@ def main():
             switch.set_state(False)
         switch.connect("notify::active", on_switch_activated)
         listbox.add(row)
+        i += 1
 
     # Battery bar
     battery_label = Gtk.Label()
@@ -366,6 +349,7 @@ def main():
 
     # GTK main
     window.connect("destroy", Gtk.main_quit)
+    window.connect("key-press-event", key_press_event)
     window.show_all()
     Gtk.main()
 
@@ -397,7 +381,8 @@ if __name__ == '__main__':
     power_value = 100
 
     # Hash map for switches
-    switch_chain = {}
+    switch_map = {}
+    shortcut_map = {}
 
     # Flags
     go2suspend_flag = True
