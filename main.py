@@ -10,7 +10,6 @@ import cnst
 import time
 from device_handle import device_prop, device_map, setEnabled
 gi.require_version("Gtk", "3.0")
-gi.require_version('Keybinder', '3.0')
 from gi.repository import Gtk, Gdk
 asyncio.set_event_loop_policy(gbulb.GLibEventLoopPolicy())
 
@@ -96,6 +95,7 @@ async def critical_check():
                     await asyncio.sleep(20)
                     break
                 elif go2suspend_flag and i == 10:
+                    # ЗАМЕНИТЬ НА САСПЕНД
                     sys.exit()
                 await asyncio.sleep(1)
         await asyncio.sleep(1)
@@ -200,51 +200,64 @@ def key_press_event(widget, event):
         switch = shortcut_map.get(int(keyval_name))
         switch_state = not switch.get_active()
         switch.set_active(switch_state)
+        print(switch_state)
+        #on_switch_activated(switch)
         setEnabled(switch_state, switch_map.get(switch))
     else:
         return False
     return True
 
 
+def main_window_init(title: str):
+    global main_window
+    main_window = Gtk.Window(title=title)
+    main_window.set_border_width(10)
 
-def main():
-    # First run
-    first_init()
+    notebook_init()
 
-    # Check cache
-    read_cache()
+    main_window.add(notebook_init())
+    for funcs in [charge_update(), warning_check(), exit_check(), critical_check(), ac_check()]:
+        loop.create_task(funcs)
+    main_window.connect("destroy", Gtk.main_quit)
+    main_window.connect("key-press-event", key_press_event)
 
-    # Main window init
-    window = Gtk.Window(title='ADVC helper :)')
-    window.set_border_width(10)
+    main_window.show_all()
+    Gtk.main()
 
-    # Tabs init
+
+def notebook_init():
     notebook = Gtk.Notebook()
+    notebook.append_page(main_box_init(), Gtk.Label(label="Main"))
+    notebook.append_page(settings_box_init(), Gtk.Label(label="Settings"))
+    return notebook
 
-    # Main tab
+
+def main_box_init():
     main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
-
     input_label = Gtk.Label()
     input_label.set_markup("<span font_desc='Tahoma 12'>\n Input devices</span>")
+    battery_label = Gtk.Label()
+    battery_label.set_markup("<span font_desc='Tahoma 12'>Battery</span>")
 
     main_box.pack_start(input_label, True, True, 0)
+    main_box.pack_start(listbox, True, True, 0)
+    main_box.pack_start(battery_label, True, True, 0)
+    main_box.pack_start(battery_box_init(), True, True, 0)
+    return main_box
 
-    notebook.append_page(main_box, Gtk.Label(label="Main"))
 
+def settings_box_init():
     setting_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
     setting_box.set_border_width(10)
+    setting_box.add(entries_init('warning charge level', warn_entry, warning_value))
+    setting_box.add(entries_init('critical charge level   ', critical_entry, critical_value))
+    return setting_box
 
-    notebook.append_page(setting_box, Gtk.Label(label="Settings"))
-    window.add(notebook)
 
-    # Get info about input devices
-    devices = device_map()
-
-    # Input devices switch bar
+def device_box_init():
+    global listbox
     listbox = Gtk.ListBox()
     listbox.set_selection_mode(Gtk.SelectionMode.NONE)
-    main_box.pack_start(listbox, True, True, 0)
-
     i = 1
     for item in devices.items():
         device_name, device_id = item
@@ -253,14 +266,11 @@ def main():
         row.add(hbox)
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         hbox.pack_start(vbox, True, True, 0)
-
         label1 = Gtk.Label(label=device_name, xalign=0)
         vbox.pack_start(label1, True, True, 0)
 
         switch = Gtk.Switch()
         switch_map.setdefault(switch, device_id)
-        shortcut_map.setdefault(i, switch)
-
         switch.props.valign = Gtk.Align.CENTER
         hbox.pack_start(switch, False, True, 0)
         if device_prop(device_id):
@@ -268,43 +278,38 @@ def main():
         else:
             switch.set_state(False)
         switch.connect("notify::active", on_switch_activated)
+        shortcut_map.setdefault(i, switch)
         listbox.add(row)
         i += 1
 
-    # Battery bar
-    battery_label = Gtk.Label()
-    battery_label.set_markup("<span font_desc='Tahoma 12'>Battery</span>")
-    main_box.pack_start(battery_label, True, True, 0)
-    listbox = Gtk.ListBox()
-    listbox.set_selection_mode(Gtk.SelectionMode.NONE)
-    main_box.pack_start(listbox, True, True, 0)
 
-    row = Gtk.ListBoxRow()
+def battery_box_init():
+    battery_box = Gtk.ListBoxRow()
     hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=50)
-    row.add(hbox)
+    battery_box.add(hbox)
     vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
     hbox.pack_start(vbox, True, True, 0)
-
     power_label = Gtk.Label(label='Charge level /', xalign=0)
     AC_label = Gtk.Label(label="On charge", xalign=0)
     hbox.pack_start(power_val_label, True, True, 0)
     vbox.pack_start(power_label, True, True, 0)
     vbox.pack_start(AC_label, True, True, 0)
     hbox.pack_start(AC_val_label, True, True, 0)
-    listbox.add(row)
+    return battery_box
 
-    # Settings tab
-    row = Gtk.ListBoxRow()
+
+def entries_init(label, entry, init_value):
+    entry_box = Gtk.ListBoxRow()
     hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
-    row.add(hbox)
+    entry_box.add(hbox)
     vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
     hbox.pack_start(vbox, True, True, 0)
-    warn_label = Gtk.Label(label='warning charge level', xalign=0)
+    warn_label = Gtk.Label(label=label, xalign=0)
     vbox.pack_start(warn_label, True, True, 0)
 
-    warn_entry.set_max_length(2)
-    warn_entry.set_text(str(warning_value))
-    hbox.pack_start(warn_entry, False, True, 0)
+    entry.set_max_length(2)
+    entry.set_text(str(init_value))
+    hbox.pack_start(entry, False, True, 0)
 
     image = Gtk.Image(stock=Gtk.STOCK_OK)
     ok_button = Gtk.Button(image=image)
@@ -315,44 +320,24 @@ def main():
     ok_button = Gtk.Button(image=image)
     ok_button.connect("clicked", warning_delete_click)
     hbox.pack_start(ok_button, True, True, 0)
+    return entry_box
 
-    setting_box.add(row)
 
-    # Critical charge level
-    row = Gtk.ListBoxRow()
-    hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
-    row.add(hbox)
-    vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-    hbox.pack_start(vbox, True, True, 0)
-    warn_label = Gtk.Label(label='critical charge level   ', xalign=0)
-    vbox.pack_start(warn_label, True, True, 0)
+def main():
+    global devices
+    # First run
+    first_init()
 
-    critical_entry.set_max_length(2)
-    critical_entry.set_text(str(critical_value))
-    hbox.pack_start(critical_entry, False, True, 0)
+    # Check cache
+    read_cache()
 
-    image = Gtk.Image(stock=Gtk.STOCK_OK)
-    ok_button = Gtk.Button(image=image)
-    ok_button.connect("clicked", critical_ok_click)
-    hbox.pack_start(ok_button, True, True, 0)
+    # Get info about input devices
+    devices = device_map()
+    device_box_init()
+    # Main window init
+    main_window_init('ADVC-helper :)')
 
-    image = Gtk.Image(stock=Gtk.STOCK_DELETE)
-    ok_button = Gtk.Button(image=image)
-    ok_button.connect("clicked", critical_delete_click)
-    hbox.pack_start(ok_button, True, True, 0)
-
-    setting_box.add(row)
-
-    # Async loop
-    for funcs in [charge_update(), warning_check(), exit_check(), critical_check(), ac_check()]:
-        loop.create_task(funcs)
-
-    # GTK main
-    window.connect("destroy", Gtk.main_quit)
-    window.connect("key-press-event", key_press_event)
-    window.show_all()
-    Gtk.main()
-
+    # Async loop launch
     loop.run_forever()
 
 
@@ -364,8 +349,11 @@ if __name__ == '__main__':
     notify2.init('ipamd')
     notifier = notify2.Notification("Battery Notifier")
 
-    # Loop launch
+    # Get loop
     loop = asyncio.get_event_loop()
+
+    main_window = None
+    listbox = None
 
     # Gtk labels for charge % and power on\off
     power_val_label = Gtk.Label(label='power_rate', xalign=0)
@@ -381,6 +369,7 @@ if __name__ == '__main__':
     power_value = 100
 
     # Hash map for switches
+    devices = {}
     switch_map = {}
     shortcut_map = {}
 
