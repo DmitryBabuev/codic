@@ -196,16 +196,17 @@ def key_press_event(widget, event):
     keyval_name = Gdk.keyval_name(keyval)
     state = event.state
     ctrl = (state & (Gdk.ModifierType.MOD1_MASK | Gdk.ModifierType.CONTROL_MASK))
-    if ctrl and shortcut_map.get(int(keyval_name)):
-        switch = shortcut_map.get(int(keyval_name))
-        switch_state = not switch.get_active()
-        switch.set_active(switch_state)
-        print(switch_state)
-        #on_switch_activated(switch)
-        setEnabled(switch_state, switch_map.get(switch))
-    else:
+    try:
+        if ctrl and shortcut_map.get(int(keyval_name)):
+            switch = shortcut_map.get(int(keyval_name))
+            switch_state = not switch.get_active()
+            switch.set_active(switch_state)
+            setEnabled(switch_state, switch_map.get(switch))
+        else:
+            return False
+        return True
+    except ValueError:
         return False
-    return True
 
 
 def main_window_init(title: str):
@@ -214,25 +215,27 @@ def main_window_init(title: str):
     main_window.set_border_width(10)
 
     notebook_init()
+    main_window.add(notebook)
 
-    main_window.add(notebook_init())
     for funcs in [charge_update(), warning_check(), exit_check(), critical_check(), ac_check()]:
         loop.create_task(funcs)
+
     main_window.connect("destroy", Gtk.main_quit)
     main_window.connect("key-press-event", key_press_event)
-
     main_window.show_all()
     Gtk.main()
 
 
 def notebook_init():
+    global notebook
     notebook = Gtk.Notebook()
-    notebook.append_page(main_box_init(), Gtk.Label(label="Main"))
+    main_box_init()
+    notebook.append_page(main_box, Gtk.Label(label="Main"))
     notebook.append_page(settings_box_init(), Gtk.Label(label="Settings"))
-    return notebook
 
 
 def main_box_init():
+    global main_box
     main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
     input_label = Gtk.Label()
     input_label.set_markup("<span font_desc='Tahoma 12'>\n Input devices</span>")
@@ -240,10 +243,9 @@ def main_box_init():
     battery_label.set_markup("<span font_desc='Tahoma 12'>Battery</span>")
 
     main_box.pack_start(input_label, True, True, 0)
-    main_box.pack_start(listbox, True, True, 0)
+    main_box.pack_start(device_box, True, True, 0)
     main_box.pack_start(battery_label, True, True, 0)
     main_box.pack_start(battery_box_init(), True, True, 0)
-    return main_box
 
 
 def settings_box_init():
@@ -255,9 +257,9 @@ def settings_box_init():
 
 
 def device_box_init():
-    global listbox
-    listbox = Gtk.ListBox()
-    listbox.set_selection_mode(Gtk.SelectionMode.NONE)
+    global device_box
+    device_box = Gtk.ListBox()
+    device_box.set_selection_mode(Gtk.SelectionMode.NONE)
     i = 1
     for item in devices.items():
         device_name, device_id = item
@@ -279,7 +281,7 @@ def device_box_init():
             switch.set_state(False)
         switch.connect("notify::active", on_switch_activated)
         shortcut_map.setdefault(i, switch)
-        listbox.add(row)
+        device_box.add(row)
         i += 1
 
 
@@ -334,6 +336,7 @@ def main():
     # Get info about input devices
     devices = device_map()
     device_box_init()
+
     # Main window init
     main_window_init('ADVC-helper :)')
 
@@ -352,8 +355,13 @@ if __name__ == '__main__':
     # Get loop
     loop = asyncio.get_event_loop()
 
+    """
+    For some reason switches <device_box> is needed to be initialized in global context
+    """
     main_window = None
-    listbox = None
+    device_box = None
+    notebook = None
+    main_box = None
 
     # Gtk labels for charge % and power on\off
     power_val_label = Gtk.Label(label='power_rate', xalign=0)
