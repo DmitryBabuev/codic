@@ -1,4 +1,11 @@
 #!/usr/bin/python3
+"""
+ADVC Consalting | www.advc.ru
+This is the support application to help in managing input devices and charge level controlling
+Application supports shortcuts to able/disable input devices ---- <Ctrl><Alt>[0-9] where [0-9] is the number of device
+in the list on screen
+Check README to more information
+"""
 import gi
 import sys
 import os
@@ -24,7 +31,8 @@ def on_switch_activated(switch: Gtk.Switch, gparam=None):
 
 
 async def show_notify(msg: str):
-    subprocess.call(['mpg123', 'sound.mp3'], stdout=devnull, stderr=devnull)
+    path2sound = f'{path}src/audio/{cnst.NOTIFY_SOUND}'
+    subprocess.call(['mpg123', path2sound], stdout=devnull, stderr=devnull)
     notifier.update(msg)
     notifier.set_urgency(notify2.URGENCY_NORMAL)
     notifier.set_timeout(10000)
@@ -95,8 +103,7 @@ async def critical_check():
                     await asyncio.sleep(20)
                     break
                 elif go2suspend_flag and i == 10:
-                    # ЗАМЕНИТЬ НА САСПЕНД
-                    sys.exit()
+                    subprocess.call(['systemctl', 'suspend'])
                 await asyncio.sleep(1)
         await asyncio.sleep(1)
 
@@ -163,31 +170,31 @@ def error_message(error_text: str, error_title: str):
 
 
 def first_init():
-    if not os.path.isdir(f'{cnst.CACHE}'):
-        os.mkdir(f'{cnst.CACHE}')
-        with open(f'{cnst.CACHE}/{cnst.WARN}', 'w') as wrn:
+    if not os.path.isdir(f'{path}{cnst.CACHE}'):
+        os.mkdir(f'{path}{cnst.CACHE}')
+        with open(f'{path}{cnst.CACHE}/{cnst.WARN}', 'w') as wrn:
             wrn.write(str(warning_value))
-        with open(f'{cnst.CACHE}/{cnst.CRIT}', 'w') as crt:
+        with open(f'{path}{cnst.CACHE}/{cnst.CRIT}', 'w') as crt:
             crt.write(str(critical_value))
 
 
 def read_cache():
     global warning_value
     global critical_value
-    if os.path.isfile(f'{cnst.CACHE}/{cnst.WARN}'):
-        with open(f'{cnst.CACHE}/{cnst.WARN}', 'r') as wrn:
+    if os.path.isfile(f'{path}{cnst.CACHE}/{cnst.WARN}'):
+        with open(f'{path}{cnst.CACHE}/{cnst.WARN}', 'r') as wrn:
             warning_value = int(wrn.read())
-    if os.path.isfile(f'{cnst.CACHE}/{cnst.CRIT}'):
-        with open(f'{cnst.CACHE}/{cnst.CRIT}', 'r') as crt:
+    if os.path.isfile(f'{path}{cnst.CACHE}/{cnst.CRIT}'):
+        with open(f'{path}{cnst.CACHE}/{cnst.CRIT}', 'r') as crt:
             critical_value = int(crt.read())
 
 
 def update_cache(val: int, flag: str):
     if flag == 'warn':
-        with open(f'{cnst.CACHE}/{cnst.WARN}', 'w') as wrn:
+        with open(f'{path}{cnst.CACHE}/{cnst.WARN}', 'w') as wrn:
             wrn.write(str(val))
     elif flag == 'crit':
-        with open(f'{cnst.CACHE}/{cnst.CRIT}', 'w') as crt:
+        with open(f'{path}{cnst.CACHE}/{cnst.CRIT}', 'w') as crt:
             crt.write(str(val))
 
 
@@ -251,8 +258,10 @@ def main_box_init():
 def settings_box_init():
     setting_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
     setting_box.set_border_width(10)
-    setting_box.add(entries_init('warning charge level', warn_entry, warning_value))
-    setting_box.add(entries_init('critical charge level   ', critical_entry, critical_value))
+    setting_box.add(entries_init
+                    ('warning charge level', warn_entry, warning_value, warning_ok_click, warning_delete_click))
+    setting_box.add(entries_init
+                    ('critical charge level   ', critical_entry, critical_value, critical_ok_click, critical_delete_click))
     return setting_box
 
 
@@ -300,7 +309,7 @@ def battery_box_init():
     return battery_box
 
 
-def entries_init(label, entry, init_value):
+def entries_init(label, entry, init_value, callback_ok, callback_delete):
     entry_box = Gtk.ListBoxRow()
     hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
     entry_box.add(hbox)
@@ -315,12 +324,12 @@ def entries_init(label, entry, init_value):
 
     image = Gtk.Image(stock=Gtk.STOCK_OK)
     ok_button = Gtk.Button(image=image)
-    ok_button.connect("clicked", warning_ok_click)
+    ok_button.connect("clicked", callback_ok)
     hbox.pack_start(ok_button, True, True, 0)
 
     image = Gtk.Image(stock=Gtk.STOCK_DELETE)
     ok_button = Gtk.Button(image=image)
-    ok_button.connect("clicked", warning_delete_click)
+    ok_button.connect("clicked", callback_delete)
     hbox.pack_start(ok_button, True, True, 0)
     return entry_box
 
@@ -347,6 +356,9 @@ def main():
 if __name__ == '__main__':
     # /dev/null
     devnull = os.open(os.devnull, os.O_WRONLY)
+
+    # Path to root dir of application
+    path = os.getcwd()[:-3]
 
     # Notifier
     notify2.init('ipamd')
