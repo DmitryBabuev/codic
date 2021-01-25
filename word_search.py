@@ -50,3 +50,4 @@ if __name__ == '__main__':
     wrd = "AAB"
     print(Solution().exist(inp, wrd))
 
+'Чтобы открыть pull'
