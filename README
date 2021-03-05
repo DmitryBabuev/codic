@@ -1,0 +1,22 @@
+ADV Consalting
+
+This application will help you to manage input devices and conrol charge level as easy as posible!
+
+1. Firstly, you need to run "setup" to install some necessary packeges
+2. On this step you can run ADVC-helper already(./bin/main.py)! (following is currently unenabled) But if you want to add this fantastic app to your local applications and launch it on startup you should perform several motion:
+    (After runnig "setup"!)
+     - ADVC-helper-startup.desktop should be placed in   ~/.config/autostart
+     - ADVC-helper.desktop should be placed in           ~/.local/share/applications
+
+Now you can find ADVC-helper application in Linux menu or still run "./bin/main.py"
+
+---------USAGE-----------
+On the main screen you can see a list of input devices. Every device can be switched to able/disable mode by turning the switch. Also, you can use shourcuts CTRL+ALT+[0-9], where nums are the numbers of devices in device list.
+
+Below you can see the percentage of charge level and availability of AC power source.
+
+On setting tab you can manage warning and critical charge levels. After riching warning level notifications will be sent. After riching critical level your laptop will be sent in suspend mode.
+
+Have a nice usage!
+
+Best regards, Dmitry Babuev

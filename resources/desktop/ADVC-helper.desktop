@@ -1,0 +1,8 @@
+#!/usr/bin/env xdg-open
+[Desktop Entry]
+Version=1.0
+Name=ADVC-helper
+Comment=Input/Battery manage
+Terminal=false
+Type=Application
+Categories=Utility;Application;

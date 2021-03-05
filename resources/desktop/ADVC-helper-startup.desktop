@@ -1,0 +1,13 @@
+[Desktop Entry]
+Version=1.0
+Name=ADVC-helper
+Comment=Input/Battery manage
+Terminal=false
+Type=Application
+Categories=Utility;Application;
+X-GNOME-Autostart-enabled=true
+NoDisplay=false
+Hidden=false
+Name[en_US]=ADVC-helper-startup.desktop
+Comment[en_US]=Input/Battery manage
+X-GNOME-Autostart-Delay=0

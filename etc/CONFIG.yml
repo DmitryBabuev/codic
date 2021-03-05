@@ -1,0 +1,5 @@
+warning_charge_value: 20
+critical_charge_value: 5
+notification_sound: sound.mp3
+icon: image.png
+
