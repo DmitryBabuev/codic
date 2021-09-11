@@ -1,12 +1,10 @@
-ADV Consalting
-
 This application will help you to manage input devices and conrol charge level as easy as posible!
 
 1. Firstly, you need to run "setup" to install some necessary packeges
 2. On this step you can run ADVC-helper already(./bin/main.py)! (following is currently unenabled) But if you want to add this fantastic app to your local applications and launch it on startup you should perform several motion:
     (After runnig "setup"!)
-     - ADVC-helper-startup.desktop should be placed in   ~/.config/autostart
-     - ADVC-helper.desktop should be placed in           ~/.local/share/applications
+     - ....-helper-startup.desktop should be placed in   ~/.config/autostart
+     - ....-helper.desktop should be placed in           ~/.local/share/applications
 
 Now you can find ADVC-helper application in Linux menu or still run "./bin/main.py"
 
